@@ -43,7 +43,6 @@ import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
-
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.core.config.Configurator;
@@ -443,64 +442,76 @@ public class BrokersBase extends AdminResource {
     }
 
     /**
-     * dynamically update log4j2 logger level in runtime.
+     * dynamically update log4j2 logger level at runtime.
      *
-     * @param targetClassName
-     * @param targetLevel
+     * @param targetClassName : class name to update
+     * @param targetLevel     : target log level
      */
-    private synchronized void updateLoggerLevel(String targetClassName, String targetLevel) {
-        try {
-            String className;
-            if (targetClassName.trim().equalsIgnoreCase("ROOT")) {
-                className = LogManager.ROOT_LOGGER_NAME;
-            } else {
-                try {
-                    className = targetClassName.trim();
-                    // Check if class name valid
-                    Class.forName(className);
-                } catch (ClassNotFoundException e) {
-                    // Logger not found
-                    throw new RestException(Status.NOT_FOUND, "Logger not found.");
-                }
-            }
-
-            Level level;
+    private CompletableFuture<Void> internalUpdateLoggerLevelAsync(String targetClassName, String targetLevel) {
+        CompletableFuture<Void> loggerLevelFuture = new CompletableFuture<>();
+        CompletableFuture.runAsync(() -> {
             try {
-                level = Level.valueOf(targetLevel);
-            } catch (IllegalArgumentException e) {
-                // Level not found
-                throw new RestException(Status.PRECONDITION_FAILED, "Invalid logger level.");
+                String className;
+                // if set "ROOT" will take effect to rootLogger
+                if (targetClassName.trim().equalsIgnoreCase("ROOT")) {
+                    className = LogManager.ROOT_LOGGER_NAME;
+                } else {
+                    try {
+                        className = targetClassName.trim();
+                        // Check if class name valid
+                        Class.forName(className);
+                    } catch (ClassNotFoundException e) {
+                        // Class not found
+                        throw new RestException(Status.NOT_FOUND, "Class not found.");
+                    }
+                }
+                Level level;
+                try {
+                    level = Level.valueOf(targetLevel);
+                    Level originLevel = LogManager.getLogger(className).getLevel();
+                    Configurator.setAllLevels(className, level);
+                    LOG.info("[{}] Successfully update log level for className: {} ({} -> {}.)",
+                      clientAppId(), className, originLevel, level);
+                } catch (IllegalArgumentException | NullPointerException e) {
+                    // Unknown Log Level or NULL
+                    throw new RestException(Status.PRECONDITION_FAILED, "Invalid logger level.");
+                }
+            } catch (RestException re) {
+                LOG.error("[{}] Failed to update log level for className: {}, targetLevel: {} due to rest exception.",
+                  clientAppId(), targetClassName, targetLevel);
+                loggerLevelFuture.completeExceptionally(re);
+            } catch (Exception ie) {
+                LOG.error("[{}] Failed to update log level for {} to {} due to internal error.",
+                  clientAppId(), targetClassName, targetLevel);
+                loggerLevelFuture.completeExceptionally(new RestException(ie));
             }
-
-            if (level != null) {
-                Level originLevel = LogManager.getLogger(className).getLevel();
-                Configurator.setAllLevels(className, level);
-                LOG.info("[{}] Successfully update log level for className: {} ({} -> {}.)", clientAppId(), className, originLevel, level);
-            } else {
-                LOG.error("[{}] Failed to update log level for {}", clientAppId(), className);
-            }
-        } catch (RestException re) {
-            LOG.error("[{}] Failed to update log level for className: {}, targetLevel: {} due to rest exception.", clientAppId(), targetClassName, targetLevel);
-            throw re;
-        } catch (Exception ie) {
-            LOG.error("[{}] Failed to update log level for {} to {} due to internal error.",
-              clientAppId(), targetClassName, targetLevel);
-            throw new RestException(ie);
-        }
+        });
+        return loggerLevelFuture;
     }
 
     @POST
     @Path("/log4j/{classname}/{level}")
     @ApiOperation(value =
-      "update dynamic log4j2 logger level in runtime by classname. This operation requires Pulsar super-user privileges.")
+      "dynamic update logger level at runtime. This operation requires Pulsar super-user privileges.")
     @ApiResponses(value = {
       @ApiResponse(code = 204, message = "class logger level updated successfully"),
       @ApiResponse(code = 403, message = "You don't have admin permission to update log4j2 logger level."),
       @ApiResponse(code = 500, message = "Internal server error")})
-    public void updateLoggerLevelDynamically(@PathParam("classname") String classname,
-                                             @PathParam("level") String level) throws Exception {
-        validateSuperUserAccess();
-        updateLoggerLevel(classname, level);
+    public void updateLoggerLevelDynamically(@Suspended final AsyncResponse asyncResponse,
+                                             @PathParam("classname") String classname,
+                                             @PathParam("level") String level) {
+        validateSuperUserAccessAsync()
+          .thenCompose(__ -> internalUpdateLoggerLevelAsync(classname, level))
+          .thenAccept(asyncResponse::resume)
+          .exceptionally(ex -> {
+              Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+              if (realCause instanceof WebApplicationException) {
+                  asyncResponse.resume(realCause);
+              } else {
+                  asyncResponse.resume(new RestException(realCause));
+              }
+              return null;
+          });
     }
 
 }
