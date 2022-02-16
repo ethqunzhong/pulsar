@@ -449,45 +449,71 @@ public class BrokersBase extends AdminResource {
      */
     private CompletableFuture<Void> internalUpdateLoggerLevelAsync(String targetClassName, String targetLevel) {
         CompletableFuture<Void> loggerLevelFuture = new CompletableFuture<>();
-        CompletableFuture.runAsync(() -> {
-            try {
-                String className;
-                // if set "ROOT" will take effect to rootLogger
-                if (targetClassName.trim().equalsIgnoreCase("ROOT")) {
-                    className = LogManager.ROOT_LOGGER_NAME;
-                } else {
-                    try {
-                        className = targetClassName.trim();
-                        // Check if class name valid
-                        Class.forName(className);
-                    } catch (ClassNotFoundException e) {
-                        // Class not found
-                        throw new RestException(Status.NOT_FOUND, "Class not found.");
-                    }
-                }
-                Level level;
-                try {
-                    level = Level.valueOf(targetLevel);
-                    Level originLevel = LogManager.getLogger(className).getLevel();
-                    Configurator.setAllLevels(className, level);
-                    LOG.info("[{}] Successfully update log level for className: {} ({} -> {}.)",
-                      clientAppId(), className, originLevel, level);
-                } catch (IllegalArgumentException | NullPointerException e) {
-                    // Unknown Log Level or NULL
-                    throw new RestException(Status.PRECONDITION_FAILED, "Invalid logger level.");
-                }
-            } catch (RestException re) {
-                LOG.error("[{}] Failed to update log level for className: {}, targetLevel: {} due to rest exception.",
-                  clientAppId(), targetClassName, targetLevel);
-                loggerLevelFuture.completeExceptionally(re);
-            } catch (Exception ie) {
-                LOG.error("[{}] Failed to update log level for {} to {} due to internal error.",
-                  clientAppId(), targetClassName, targetLevel);
-                loggerLevelFuture.completeExceptionally(new RestException(ie));
+        try {
+            String className;
+            // if set "ROOT" will take effect to rootLogger
+            if (targetClassName.trim().equalsIgnoreCase("ROOT")) {
+                className = LogManager.ROOT_LOGGER_NAME;
+            } else {
+                className = targetClassName;
             }
-        });
+            Level newLevel;
+            try {
+                newLevel = Level.valueOf(targetLevel);
+                Level originLevel = LogManager.getLogger(className).getLevel();
+                Configurator.setAllLevels(className, newLevel);
+                LOG.info("[{}] Successfully update log level for className: {} ({} -> {}.)",
+                  clientAppId(), className, originLevel, newLevel);
+            } catch (IllegalArgumentException | NullPointerException e) {
+                // Unknown Log Level or NULL
+                throw new RestException(Status.PRECONDITION_FAILED, "Invalid logger level.");
+            }
+        } catch (RestException re) {
+            LOG.error("[{}] Failed to update log level for className: {}, targetLevel: {} due to rest exception.",
+              clientAppId(), targetClassName, targetLevel);
+            loggerLevelFuture.completeExceptionally(re);
+        } catch (Exception ie) {
+            LOG.error("[{}] Failed to update log level for {} to {} due to internal error.",
+              clientAppId(), targetClassName, targetLevel);
+            loggerLevelFuture.completeExceptionally(new RestException(ie));
+        }
         return loggerLevelFuture;
     }
+
+//    private CompletableFuture<Void> internalUpdateLoggerLevelAsync(String targetClassName, String targetLevel) {
+//        CompletableFuture<Void> loggerLevelFuture = new CompletableFuture<>();
+//        CompletableFuture.runAsync(() -> {
+//            try {
+//                String className;
+//                // if set "ROOT" will take effect to rootLogger
+//                if (targetClassName.trim().equalsIgnoreCase("ROOT")) {
+//                    className = LogManager.ROOT_LOGGER_NAME;
+//                } else {
+//                    className = targetClassName;
+//                }
+//                Level newLevel;
+//                try {
+//                    newLevel = Level.valueOf(targetLevel);
+//                    Level originLevel = LogManager.getLogger(className).getLevel();
+//                    Configurator.setAllLevels(className, newLevel);
+//                    LOG.info("[{}] Successfully update log level for className: {} ({} -> {}.)",
+//                      clientAppId(), className, originLevel, newLevel);
+//                } catch (IllegalArgumentException | NullPointerException e) {
+//                    // Unknown Log Level or NULL
+//                    throw new RestException(Status.PRECONDITION_FAILED, "Invalid logger level.");
+//                }
+//            } catch (RestException re) {
+//                LOG.error("[{}] Failed to update log level for className: {}, targetLevel: {} due to rest exception.",
+//                  clientAppId(), targetClassName, targetLevel);
+//                loggerLevelFuture.completeExceptionally(re);
+//            } catch (Exception ie) {
+//                LOG.error("[{}] Failed to update log level for {} to {} due to internal error.",
+//                  clientAppId(), targetClassName, targetLevel);
+//                loggerLevelFuture.completeExceptionally(new RestException(ie));
+//            }
+//        });
+//        return loggerLevelFuture;
+//    }
 
     @POST
     @Path("/log4j/{classname}/{level}")
