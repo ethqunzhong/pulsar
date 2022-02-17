@@ -462,14 +462,14 @@ public class BrokersBase extends AdminResource {
                 newLevel = Level.valueOf(targetLevel);
                 Level originLevel = LogManager.getLogger(className).getLevel();
                 Configurator.setAllLevels(className, newLevel);
-                LOG.info("[{}] Successfully update log level for className: {} ({} -> {}.)",
+                LOG.info("[{}] Succeed update log level for className: {} ({} -> {}.)",
                   clientAppId(), className, originLevel, newLevel);
             } catch (IllegalArgumentException | NullPointerException e) {
                 // Unknown Log Level or NULL
                 throw new RestException(Status.PRECONDITION_FAILED, "Invalid logger level.");
             }
         } catch (RestException re) {
-            LOG.error("[{}] Failed to update log level for className: {}, targetLevel: {} due to rest exception.",
+            LOG.error("[{}] Failed to update log level for {} to {} due to rest exception.",
               clientAppId(), targetClassName, targetLevel);
             loggerLevelFuture.completeExceptionally(re);
         } catch (Exception ie) {
@@ -477,6 +477,7 @@ public class BrokersBase extends AdminResource {
               clientAppId(), targetClassName, targetLevel);
             loggerLevelFuture.completeExceptionally(new RestException(ie));
         }
+        LOG.info("---------------------------");
         return loggerLevelFuture;
     }
 
@@ -492,9 +493,10 @@ public class BrokersBase extends AdminResource {
                                              @PathParam("classname") String classname,
                                              @PathParam("level") String level) {
         validateSuperUserAccessAsync()
+          // 这里一直没有返回
           .thenCompose(__ -> internalUpdateLoggerLevelAsync(classname, level))
           .thenAccept(__ -> {
-              LOG.info("[{}] Updated class {} to logger level {}", clientAppId(), classname, level);
+              LOG.info("[{}] Succeed update class {} to logger level {}", clientAppId(), classname, level);
               asyncResponse.resume(Response.ok().build());
           }).exceptionally(ex -> {
               LOG.error("[{}] Failed update class {} to logger level {}", clientAppId(), classname, level, ex);

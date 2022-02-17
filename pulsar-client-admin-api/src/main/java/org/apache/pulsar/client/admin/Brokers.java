@@ -307,6 +307,8 @@ public interface Brokers {
 
     /**
      * dynamically update log4j2 logger level in runtime.
+     *
+     * @throws PulsarAdminException if update logger level failed.
      */
     void updateLoggerLevel(String classname, String level) throws PulsarAdminException;
 
