@@ -480,41 +480,6 @@ public class BrokersBase extends AdminResource {
         return loggerLevelFuture;
     }
 
-//    private CompletableFuture<Void> internalUpdateLoggerLevelAsync(String targetClassName, String targetLevel) {
-//        CompletableFuture<Void> loggerLevelFuture = new CompletableFuture<>();
-//        CompletableFuture.runAsync(() -> {
-//            try {
-//                String className;
-//                // if set "ROOT" will take effect to rootLogger
-//                if (targetClassName.trim().equalsIgnoreCase("ROOT")) {
-//                    className = LogManager.ROOT_LOGGER_NAME;
-//                } else {
-//                    className = targetClassName;
-//                }
-//                Level newLevel;
-//                try {
-//                    newLevel = Level.valueOf(targetLevel);
-//                    Level originLevel = LogManager.getLogger(className).getLevel();
-//                    Configurator.setAllLevels(className, newLevel);
-//                    LOG.info("[{}] Successfully update log level for className: {} ({} -> {}.)",
-//                      clientAppId(), className, originLevel, newLevel);
-//                } catch (IllegalArgumentException | NullPointerException e) {
-//                    // Unknown Log Level or NULL
-//                    throw new RestException(Status.PRECONDITION_FAILED, "Invalid logger level.");
-//                }
-//            } catch (RestException re) {
-//                LOG.error("[{}] Failed to update log level for className: {}, targetLevel: {} due to rest exception.",
-//                  clientAppId(), targetClassName, targetLevel);
-//                loggerLevelFuture.completeExceptionally(re);
-//            } catch (Exception ie) {
-//                LOG.error("[{}] Failed to update log level for {} to {} due to internal error.",
-//                  clientAppId(), targetClassName, targetLevel);
-//                loggerLevelFuture.completeExceptionally(new RestException(ie));
-//            }
-//        });
-//        return loggerLevelFuture;
-//    }
-
     @POST
     @Path("/log4j/{classname}/{level}")
     @ApiOperation(value =
@@ -528,14 +493,12 @@ public class BrokersBase extends AdminResource {
                                              @PathParam("level") String level) {
         validateSuperUserAccessAsync()
           .thenCompose(__ -> internalUpdateLoggerLevelAsync(classname, level))
-          .thenAccept(asyncResponse::resume)
-          .exceptionally(ex -> {
-              Throwable realCause = FutureUtil.unwrapCompletionException(ex);
-              if (realCause instanceof WebApplicationException) {
-                  asyncResponse.resume(realCause);
-              } else {
-                  asyncResponse.resume(new RestException(realCause));
-              }
+          .thenAccept(__ -> {
+              LOG.info("[{}] Updated class {} to logger level {}", clientAppId(), classname, level);
+              asyncResponse.resume(Response.ok().build());
+          }).exceptionally(ex -> {
+              LOG.error("[{}] Failed update class {} to logger level {}", clientAppId(), classname, level, ex);
+              resumeAsyncResponseExceptionally(asyncResponse, ex);
               return null;
           });
     }
