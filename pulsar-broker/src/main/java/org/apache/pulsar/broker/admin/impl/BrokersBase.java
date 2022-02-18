@@ -471,14 +471,14 @@ public class BrokersBase extends AdminResource {
         } catch (RestException re) {
             LOG.error("[{}] Failed to update log level for {} to {} due to rest exception.",
               clientAppId(), targetClassName, targetLevel);
-            loggerLevelFuture.completeExceptionally(re);
+//            loggerLevelFuture.completeExceptionally(re);
         } catch (Exception ie) {
             LOG.error("[{}] Failed to update log level for {} to {} due to internal error.",
               clientAppId(), targetClassName, targetLevel);
-            loggerLevelFuture.completeExceptionally(new RestException(ie));
+//            loggerLevelFuture.completeExceptionally(new RestException(ie));
         }
         LOG.info("---------------------------");
-        return loggerLevelFuture;
+        return CompletableFuture.completedFuture(null);
     }
 
     @POST
@@ -497,9 +497,8 @@ public class BrokersBase extends AdminResource {
           .thenCompose(__ -> internalUpdateLoggerLevelAsync(classname, level))
           .thenAccept(__ -> {
               LOG.info("[{}] Succeed update class {} to logger level {}", clientAppId(), classname, level);
-              // or removed
+              asyncResponse.resume(Response.ok().build());
           })
-//          .thenAccept(ignore -> {})
           .exceptionally(ex -> {
               LOG.error("[{}] Failed update class {} to logger level {}", clientAppId(), classname, level, ex);
               resumeAsyncResponseExceptionally(asyncResponse, ex);
