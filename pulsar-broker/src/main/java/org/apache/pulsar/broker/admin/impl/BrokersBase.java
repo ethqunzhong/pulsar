@@ -469,13 +469,13 @@ public class BrokersBase extends AdminResource {
                 throw new RestException(Status.PRECONDITION_FAILED, "Invalid logger level.");
             }
         } catch (RestException re) {
-            LOG.error("[{}] Failed to update log level for {} to {} due to rest exception.",
-              clientAppId(), targetClassName, targetLevel);
+//            LOG.error("[{}] Failed to update log level for {} to {} due to rest exception.",
+//              clientAppId(), targetClassName, targetLevel);
             throw re;
 //            loggerLevelFuture.completeExceptionally(re);
         } catch (Exception ie) {
-            LOG.error("[{}] Failed to update log level for {} to {} due to internal error.",
-              clientAppId(), targetClassName, targetLevel);
+//            LOG.error("[{}] Failed to update log level for {} to {} due to internal error.",
+//              clientAppId(), targetClassName, targetLevel);
             throw new RestException(ie);
 //            return CompletableFuture.completedFuture(null).;
 //            loggerLevelFuture.completeExceptionally(new RestException(ie));
