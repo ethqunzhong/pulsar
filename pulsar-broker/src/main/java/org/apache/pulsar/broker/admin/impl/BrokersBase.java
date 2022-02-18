@@ -471,10 +471,13 @@ public class BrokersBase extends AdminResource {
         } catch (RestException re) {
             LOG.error("[{}] Failed to update log level for {} to {} due to rest exception.",
               clientAppId(), targetClassName, targetLevel);
+            throw re;
 //            loggerLevelFuture.completeExceptionally(re);
         } catch (Exception ie) {
             LOG.error("[{}] Failed to update log level for {} to {} due to internal error.",
               clientAppId(), targetClassName, targetLevel);
+            throw new RestException(ie);
+//            return CompletableFuture.completedFuture(null).;
 //            loggerLevelFuture.completeExceptionally(new RestException(ie));
         }
         LOG.info("---------------------------");
@@ -489,7 +492,7 @@ public class BrokersBase extends AdminResource {
       @ApiResponse(code = 204, message = "class logger level updated successfully"),
       @ApiResponse(code = 403, message = "You don't have admin permission to update log4j2 logger level."),
       @ApiResponse(code = 500, message = "Internal server error")})
-    public void updateLoggerLevelDynamically(@Suspended AsyncResponse asyncResponse,
+    public void updateLoggerLevelDynamically(@Suspended final AsyncResponse asyncResponse,
                                              @PathParam("classname") String classname,
                                              @PathParam("level") String level) {
         validateSuperUserAccessAsync()
