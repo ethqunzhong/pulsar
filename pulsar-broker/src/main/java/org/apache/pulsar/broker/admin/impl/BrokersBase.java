@@ -489,7 +489,7 @@ public class BrokersBase extends AdminResource {
       @ApiResponse(code = 204, message = "class logger level updated successfully"),
       @ApiResponse(code = 403, message = "You don't have admin permission to update log4j2 logger level."),
       @ApiResponse(code = 500, message = "Internal server error")})
-    public void updateLoggerLevelDynamically(@Suspended final AsyncResponse asyncResponse,
+    public void updateLoggerLevelDynamically(@Suspended AsyncResponse asyncResponse,
                                              @PathParam("classname") String classname,
                                              @PathParam("level") String level) {
         validateSuperUserAccessAsync()
@@ -497,13 +497,16 @@ public class BrokersBase extends AdminResource {
           .thenCompose(__ -> internalUpdateLoggerLevelAsync(classname, level))
           .thenAccept(__ -> {
               LOG.info("[{}] Succeed update class {} to logger level {}", clientAppId(), classname, level);
-              asyncResponse.resume(Response.ok().build());
-          }).exceptionally(ex -> {
+              // or removed
+              asyncResponse.resume("Succeed update logger.");
+//              asyncResponse.resume(Response.ok().build());
+          })
+          .thenAccept(ignore -> {})
+          .exceptionally(ex -> {
               LOG.error("[{}] Failed update class {} to logger level {}", clientAppId(), classname, level, ex);
               resumeAsyncResponseExceptionally(asyncResponse, ex);
               return null;
           });
     }
-
 }
 
