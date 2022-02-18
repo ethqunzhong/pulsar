@@ -498,10 +498,8 @@ public class BrokersBase extends AdminResource {
           .thenAccept(__ -> {
               LOG.info("[{}] Succeed update class {} to logger level {}", clientAppId(), classname, level);
               // or removed
-              asyncResponse.resume("Succeed update logger.");
-//              asyncResponse.resume(Response.ok().build());
           })
-          .thenAccept(ignore -> {})
+//          .thenAccept(ignore -> {})
           .exceptionally(ex -> {
               LOG.error("[{}] Failed update class {} to logger level {}", clientAppId(), classname, level, ex);
               resumeAsyncResponseExceptionally(asyncResponse, ex);
